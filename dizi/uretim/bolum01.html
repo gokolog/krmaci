@@ -23,9 +23,10 @@ const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const outBack=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
 const seg=(t,a,b)=>clamp((t-a)/(b-a));
+const lerp=(a,b,u)=>a+(b-a)*u;
 const FONT='"Poppins","Montserrat","DejaVu Sans","Arial",sans-serif';
 
-// Altyazı / seslendirme parçaları (tts betiğiyle aynı zamanlama)
+// Seslendirme / altyazı parçaları (tts_azure.py ile aynı zamanlama)
 const VO=[
  [0.0,3.0,"Gözünde bir delik var. Ve beynin bunu senden saklıyor."],
  [3.0,8.0,"Sol gözünü kapat. Sağ gözünle artıya bak. Telefonu yavaşça yüzüne yaklaştır."],
@@ -56,20 +57,144 @@ function wrap(s,maxW,size){
 }
 function subtitle(t){
   const v=VO.find(v=>t>=v[0]&&t<v[1]);if(!v)return;
-  const lines=wrap(v[2],900,46);const y0=1720-(lines.length-1)*28;
+  const lines=wrap(v[2],900,46);const y0=1765-(lines.length-1)*28;
   lines.forEach((l,i)=>{
     ctx.save();ctx.font=`600 46px ${FONT}`;const w=ctx.measureText(l).width;
     ctx.fillStyle='rgba(13,16,32,.78)';ctx.fillRect(W/2-w/2-18,y0+i*58-34,w+36,60);ctx.restore();
     text(l,W/2,y0+i*58,46,FG,1,'600');
   });
 }
-function grain(t){ // hafif doku
+function grain(t){
   ctx.save();ctx.globalAlpha=.05;ctx.fillStyle='#fff';
   for(let i=0;i<40;i++){const x=(Math.sin(i*91.3+Math.floor(t*12))*.5+.5)*W,y=(Math.sin(i*47.7+Math.floor(t*12)*1.3)*.5+.5)*H;ctx.fillRect(x,y,3,3)}
   ctx.restore();
 }
 
-// ---------- GÖZ ----------
+// =====================================================================
+//  MASKOT: KIVRIM (yaramaz beyin)
+// =====================================================================
+const BRAIN_D='#c9577a',BRAIN='#f7a1b8',BRAIN_F='#e57f9d',INK='#6e1f3b';
+const D={lx:0,ly:0,brL:.4,brR:.4,eL:1,eR:1,sm:.6,aLx:-235,aLy:150,aRx:235,aRy:150,hL:34,sc:1,pt:0,pc:0};
+const K=[];
+const key=(t,o)=>K.push({...D,...o,t});
+const hold=(a,b,o)=>{key(a,o);key(b,o)};
+hold(0,.5,{brL:1,brR:1,eL:1.15,eR:1.15,sm:.1});                                   // belirir, şaşkın bakış
+hold(1.2,3.0,{brL:.9,brR:.2,sm:.9,aRx:215,aRy:-250,pt:1,ly:-.6,lx:.2});            // gözü işaret eder, sırıtır
+hold(3.8,8.0,{aLx:-62,aLy:2,hL:64,eL:.25,brR:.5,sm:.3,lx:-.8,ly:-.5,aRx:235,aRy:90}); // sol gözünü kapatır, artıya bakar
+hold(8.7,9.9,{aLx:-62,aLy:2,hL:64,eL:.25,eR:.8,brR:.1,sm:0,lx:-.9,ly:-.4,aRx:235,aRy:90,sc:1.1}); // yaklaşır
+hold(10.1,10.9,{eL:1.25,eR:1.25,brL:1,brR:1,sm:.1,aLx:-250,aLy:60,aRx:250,aRy:60,sc:1.05,ly:-.2,lx:-.4}); // ŞOK
+hold(11.2,11.9,{eL:1,eR:1,brL:.7,brR:.7,sm:1});                                     // sırıtış
+hold(12.5,18.9,{aRx:150,aRy:-300,pt:1,ly:-.6,lx:.3,brL:.5,brR:.5,sm:.5});           // diyagramı gösterir
+hold(19.4,23.2,{pc:1,aRx:215,aRy:-120,ly:-.3,lx:.3,brL:0,brR:.9,sm:.6});            // kalem
+hold(23.6,24.9,{eL:1,eR:.05,sm:1,brL:.9,brR:.6,pc:1,aRx:215,aRy:-120,sc:1.05});     // GÖZ KIRPAR: uydurma
+hold(25.6,30,{sc:1.12,aRx:105,aRy:75,brL:1,brR:.1,sm:.2,lx:0,ly:0});                // meraklandırır
+function pose(t){
+  let i=0;while(i<K.length-2&&t>=K[i+1].t)i++;
+  const a=K[i],b=K[i+1],u=ease(seg(t,a.t,b.t)),o={};
+  for(const f in D)o[f]=lerp(a[f],b[f],u);return o;
+}
+function talkOpen(t){
+  if(t>=10.0&&t<10.9)return .95;
+  const v=VO.find(v=>t>=v[0]&&t<v[1]);if(!v)return 0;
+  const gap=(Math.floor(t*2.2)%7===6)?0:1;           // arada nefes
+  return gap*(.25+.75*Math.abs(Math.sin(t*17)))*(.55+.45*Math.abs(Math.sin(t*5.3)));
+}
+function arm(sx,hx,hy,hr,pt,pc){
+  const sx0=sx*215,sy0=60;
+  const mx=(sx0+hx)/2,my=(sy0+hy)/2+35;
+  ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx0,sy0);ctx.quadraticCurveTo(mx,my,hx,hy);
+  ctx.lineWidth=40;ctx.strokeStyle=BRAIN_D;ctx.stroke();
+  ctx.lineWidth=26;ctx.strokeStyle=BRAIN;ctx.stroke();
+  if(pc>.01){ // kalem
+    ctx.save();ctx.translate(hx,hy);ctx.rotate(-.7);ctx.globalAlpha=pc;
+    ctx.fillStyle=AC;ctx.fillRect(-9,-120,18,120);
+    ctx.fillStyle='#ffd37a';ctx.beginPath();ctx.moveTo(-9,-120);ctx.lineTo(9,-120);ctx.lineTo(0,-148);ctx.fill();
+    ctx.fillStyle='#f59ab0';ctx.fillRect(-9,-8,18,16);ctx.restore();
+  }
+  if(pt>.01){ // işaret parmağı
+    const ang=Math.atan2(hy-my,hx-mx);
+    ctx.beginPath();ctx.moveTo(hx,hy);ctx.lineTo(hx+Math.cos(ang)*52*pt,hy+Math.sin(ang)*52*pt);
+    ctx.lineWidth=18;ctx.strokeStyle=BRAIN_D;ctx.stroke();
+    ctx.lineWidth=9;ctx.strokeStyle='#ffd7e0';ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(hx,hy,hr,0,7);ctx.fillStyle='#ffd7e0';ctx.fill();
+  ctx.lineWidth=8;ctx.strokeStyle=BRAIN_D;ctx.stroke();
+}
+function eye(sx,open,P,blink){
+  const o=clamp(open*blink,0,1.3),ex=sx*62;
+  const ry=Math.max(4,52*o),rx=52+(o>1?(o-1)*40:0);
+  ctx.save();ctx.translate(ex,0);
+  ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);ctx.fillStyle='#fff';ctx.fill();
+  ctx.save();ctx.clip();
+  ctx.beginPath();ctx.arc(P.lx*20,P.ly*18,24,0,7);ctx.fillStyle='#16182e';ctx.fill();
+  ctx.beginPath();ctx.arc(P.lx*20-8,P.ly*18-9,8,0,7);ctx.fillStyle='#fff';ctx.fill();
+  ctx.restore();
+  ctx.lineWidth=7;ctx.strokeStyle=INK;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);ctx.stroke();
+  ctx.restore();
+}
+function brow(sx,v){
+  const y=-74-v*26,tilt=v*16-6;
+  ctx.beginPath();ctx.moveTo(sx*20,y+10);ctx.lineTo(sx*100,y-tilt);
+  ctx.lineWidth=15;ctx.lineCap='round';ctx.strokeStyle=INK;ctx.stroke();
+}
+function mouth(P,open){
+  const y=96;
+  if(open<.1){
+    ctx.beginPath();ctx.moveTo(-48,y);ctx.quadraticCurveTo(0,y+P.sm*46+6,48,y);
+    ctx.lineWidth=11;ctx.lineCap='round';ctx.strokeStyle=INK;ctx.stroke();
+    if(P.sm>.7){ctx.beginPath();ctx.moveTo(48,y);ctx.lineTo(60,y-8);ctx.moveTo(-48,y);ctx.lineTo(-60,y-8);ctx.lineWidth=8;ctx.stroke()}
+  }else{
+    const ry=8+44*open,rx=46-6*open;
+    ctx.beginPath();ctx.ellipse(0,y+ry*.4,rx,ry,0,0,7);ctx.fillStyle=INK;ctx.fill();
+    ctx.save();ctx.clip();ctx.beginPath();ctx.ellipse(0,y+ry*1.1,rx*.7,ry*.55,0,0,7);ctx.fillStyle='#ff6f91';ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.ellipse(0,y+ry*.4,rx,ry,0,0,7);ctx.lineWidth=6;ctx.strokeStyle=INK;ctx.stroke();
+  }
+}
+function mascot(t){
+  const P=pose(t),pop=outBack(seg(t,0,.55));
+  const bx=W/2,by=1395+(1-pop)*520+Math.sin(t*3)*5;
+  const bl=(t%3.1)<.12?.08:1; // göz kırpma
+  const s=P.sc*(.45+.55*pop);
+  ctx.save();ctx.translate(bx,by);ctx.scale(s,s*(1+.012*Math.sin(t*5)));
+  // gölge
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(0,262,190,26,0,0,7);ctx.fill();
+  // bacaklar + turuncu spor ayakkabı
+  for(const sx of[-1,1]){
+    ctx.fillStyle=BRAIN_D;ctx.fillRect(sx*72-15,140,30,100);
+    ctx.fillStyle=AC;ctx.beginPath();ctx.ellipse(sx*72+sx*12,246,48,22,0,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillRect(sx*72+sx*12-34,252,68,7);
+  }
+  // beyin gövdesi
+  const L=[[-135,-50,115],[0,-95,125],[135,-50,115],[-120,50,105],[120,50,105],[0,60,115]];
+  ctx.fillStyle=BRAIN_D;L.forEach(([x,y,r])=>{ctx.beginPath();ctx.arc(x,y,r+10,0,7);ctx.fill()});
+  ctx.fillStyle=BRAIN;L.forEach(([x,y,r])=>{ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()});
+  // kıvrımlar
+  ctx.strokeStyle=BRAIN_F;ctx.lineWidth=11;ctx.lineCap='round';
+  [[-175,-120,-120,-150,-85,-100],[60,-195,115,-165,95,-110],[-30,-200,-50,-150,-15,-125],
+   [215,-30,175,-5,205,40],[-215,-20,-170,5,-205,50],[170,120,130,150,95,135],[-170,115,-125,150,-90,130]]
+  .forEach(([x0,y0,cx,cy,x1,y1])=>{ctx.beginPath();ctx.moveTo(x0,y0);ctx.quadraticCurveTo(cx,cy,x1,y1);ctx.stroke()});
+  // yüz
+  ctx.fillStyle='rgba(255,90,130,.45)';[-1,1].forEach(sx=>{ctx.beginPath();ctx.ellipse(sx*118,62,26,15,0,0,7);ctx.fill()});
+  eye(-1,P.eL,P,bl);eye(1,P.eR,P,bl);
+  brow(-1,P.brL);brow(1,P.brR);
+  mouth(P,talkOpen(t));
+  // kollar (yüzün önünde)
+  arm(-1,P.aLx,P.aLy,P.hL,0,0);
+  arm(1,P.aRx,P.aRy,34,P.pt,P.pc);
+  ctx.restore();
+  // isim etiketi
+  const na=seg(t,.7,1.0)*(1-seg(t,2.8,3.1));
+  if(na>0){
+    ctx.save();ctx.globalAlpha=na;ctx.translate(850,1205);ctx.rotate(-.12);ctx.scale(.85+.15*outBack(seg(t,.7,1.1)),.85+.15*outBack(seg(t,.7,1.1)));
+    ctx.fillStyle=AC;ctx.beginPath();ctx.roundRect(-135,-36,270,72,18);ctx.fill();
+    text('KIVRIM',0,3,46,BG,1,'900');ctx.restore();
+  }
+}
+
+// =====================================================================
+//  SAHNELER (sahne alanı %80 ölçekte, üst bölüme sığar)
+// =====================================================================
 function drawEye(cx,cy,sc,holeR,look=0){
   ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);
   ctx.beginPath();ctx.moveTo(-260,0);ctx.quadraticCurveTo(0,-230,260,0);ctx.quadraticCurveTo(0,230,-260,0);ctx.closePath();
@@ -79,7 +204,7 @@ function drawEye(cx,cy,sc,holeR,look=0){
   ctx.beginPath();ctx.arc(ix,0,120,0,7);ctx.fillStyle='#3b82c4';ctx.fill();
   ctx.beginPath();ctx.arc(ix,0,120,0,7);ctx.lineWidth=10;ctx.strokeStyle='#1d4f86';ctx.stroke();
   ctx.beginPath();ctx.arc(ix,0,52,0,7);ctx.fillStyle='#05060c';ctx.fill();
-  if(holeR>0){ // delik: parlayan boşluk
+  if(holeR>0){
     const g=ctx.createRadialGradient(ix,0,0,ix,0,holeR);
     g.addColorStop(0,'#000');g.addColorStop(.8,'#000');g.addColorStop(1,AC);
     ctx.beginPath();ctx.arc(ix,0,holeR,0,7);ctx.fillStyle=g;ctx.fill();
@@ -90,83 +215,53 @@ function drawEye(cx,cy,sc,holeR,look=0){
   ctx.lineWidth=12;ctx.strokeStyle='#1a1e36';ctx.stroke();
   ctx.restore();
 }
-
-// ---------- SAHNE 1: 0-3 ----------
 function s1(t){
   const p=seg(t,0.2,2.6);
   const sc=.8+.35*ease(seg(t,0,3));
   drawEye(W/2,760,sc,10+110*ease(p)*(1+.06*Math.sin(t*14)),Math.sin(t*2)*.4);
-  bigText(['GÖZÜNDE','BİR DELİK','VAR'],1180,110,.9,3.0,FG,t);
+  bigText(['GÖZÜNDE BİR','DELİK VAR'],1090,108,.9,3.0,FG,t);
 }
 
-// ---------- SAHNE 2-3: 3-12 ----------
-const PX=120,DX=960,PY=900; // + ile ● arası ~%78 ekran genişliği (telefonda ~5 cm → ~19 cm mesafede kör noktaya düşer)
-const DR=64; // nokta yarıçapı
+// kör nokta testi: artı ve nokta TAM EKRAN koordinatlarında (ölçeksiz) çizilir.
+// + ile ● arası ~%78 ekran genişliği → telefonda ~5 cm → ~19 cm mesafede kör noktaya düşer.
+const PX=120,DX=960,PYA=740,DR=64;
 function plus(x,y,s,col,a=1){ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=col;ctx.lineWidth=14;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(x-s,y);ctx.lineTo(x+s,y);ctx.moveTo(x,y-s);ctx.lineTo(x,y+s);ctx.stroke();ctx.restore()}
 function s2(t){
   const a=seg(t,3,3.4)*(1-seg(t,11.7,12));
-  // sol göz kapanıyor (3.4–4.2)
-  const closing=ease(seg(t,3.3,4.3));
-  plus(PX,PY,50,AC,a);
-  // nokta: 9.0'da kaybolur, 11.4'te geri gelir
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);
+  plus(PX,PYA,50,AC,a);
   const gone=t>=10.0&&t<11.7;
   if(!gone&&a>0){
     let r=DR;
     if(t>=9.7&&t<10.0)r=DR*(1-seg(t,9.7,10.0)*.9);
     if(t>=11.7)r=DR*outBack(seg(t,11.7,12.0));
-    ctx.save();ctx.globalAlpha=a;ctx.fillStyle=FG;ctx.beginPath();ctx.arc(DX,PY,Math.max(r,0),0,7);ctx.fill();ctx.restore();
+    ctx.save();ctx.globalAlpha=a;ctx.fillStyle=FG;ctx.beginPath();ctx.arc(DX,PYA,Math.max(r,0),0,7);ctx.fill();ctx.restore();
   }
-  if(t>=10.0&&t<10.5){ // pof halkası
+  if(t>=10.0&&t<10.5){
     const k=seg(t,10.0,10.5);ctx.save();ctx.globalAlpha=1-k;ctx.strokeStyle=AC;ctx.lineWidth=8;
-    ctx.beginPath();ctx.arc(DX,PY,DR+120*k,0,7);ctx.stroke();ctx.restore();
+    ctx.beginPath();ctx.arc(DX,PYA,DR+120*k,0,7);ctx.stroke();ctx.restore();
   }
-  // göz kapatma ikonu (sol gözü kapat)
-  if(t>3&&t<8){
-    const ex=W/2-150,ey=420,ew=130;
-    for(let i=0;i<2;i++){
-      const x=W/2+(i?150:-150);
-      ctx.save();ctx.globalAlpha=seg(t,3,3.4)*(1-seg(t,7.7,8));
-      ctx.beginPath();
-      const closed=i===0?closing:0;
-      const h=90*(1-closed);
-      ctx.moveTo(x-ew/2,ey);ctx.quadraticCurveTo(x,ey-h,x+ew/2,ey);ctx.quadraticCurveTo(x,ey+h,x-ew/2,ey);ctx.closePath();
-      ctx.fillStyle=FG;ctx.fill();
-      if(closed<.8){ctx.beginPath();ctx.arc(x+(i?-0:0)+ (i?-18:18)*0+30,ey,26*(1-closed),0,7);ctx.fillStyle='#3b82c4';ctx.fill();}
-      ctx.lineWidth=8;ctx.strokeStyle=i===0&&closed>.9?RED:'#1a1e36';ctx.stroke();
-      if(i===0&&closed>.5){ctx.globalAlpha*=closed;ctx.strokeStyle=RED;ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(x-ew/2-10,ey+55);ctx.lineTo(x+ew/2+10,ey-55);ctx.stroke();}
-      ctx.restore();
-    }
-  }
-  bigText(['SOL GÖZÜNÜ','KAPAT'],1150,100,3.2,5.6,FG,t);
-  bigText(['+ İŞARETİNE','BAK'],1150,100,5.6,8.0,AC,t);
-  // telefon yaklaşma oku 8–9.2
+  ctx.restore();
+  bigText(['SOL GÖZÜNÜ','KAPAT'],1000,100,3.2,5.6,FG,t);
+  bigText(['+ İŞARETİNE','BAK'],1000,100,5.6,8.0,AC,t);
   if(t>=8&&t<10.6){
-    const k=seg(t,8,10.0),aa=1-seg(t,10.2,10.6);
-    ctx.save();ctx.globalAlpha=aa;
-    const r=70+(1-k)*90;
-    ctx.strokeStyle=FG;ctx.lineWidth=8;ctx.setLineDash([22,16]);
-    ctx.strokeRect(W/2-r*3.2,1420-r*.7,r*6.4,r*1.4);
-    ctx.restore();
-    text('telefonu yavaşça yaklaştır',W/2,1230,48,DIM,aa*seg(t,8,8.3),'700');text('gözün + işaretinde kalsın',W/2,1290,48,DIM,aa*seg(t,8,8.3),'700');
+    const aa=1-seg(t,10.2,10.6);
+    text('telefonu yavaşça yaklaştır',W/2,1000,48,DIM,aa*seg(t,8,8.3),'700');
+    text('gözün + işaretinde kalsın',W/2,1062,48,DIM,aa*seg(t,8,8.3),'700');
   }
-  bigText(['NOKTA','KAYBOLDU,','DEĞİL Mİ?'],1170,104,10.5,12.0,AC,t);
+  bigText(['NOKTA KAYBOLDU,','DEĞİL Mİ?'],1000,96,10.5,12.0,AC,t);
 }
 
-// ---------- SAHNE 4: 12-19 ----------
 function s3(t){
   const a=seg(t,12,12.4)*(1-seg(t,18.7,19));
   if(a<=0)return;
   ctx.save();ctx.globalAlpha=a;
-  const cx=W/2-40,cy=820,R=330;
-  // göz küresi
+  const cx=W/2-40,cy=760,R=330;
   ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fillStyle='#1b2038';ctx.fill();
   ctx.lineWidth=10;ctx.strokeStyle=FG;ctx.stroke();
-  // lens
   ctx.beginPath();ctx.ellipse(cx-R+36,cy,34,92,0,0,7);ctx.fillStyle='#3b82c4';ctx.fill();
-  // retina: sağ tarafta yay; boşluk = sinir çıkışı
-  const a0=-1.05,a1=1.05,gapA=.28,n=36;
-  const grow=seg(t,12.4,14.2);
+  const a0=-1.05,a1=1.05,gapA=.28,n=36,grow=seg(t,12.4,14.2);
   for(let i=0;i<=n;i++){
     const ang=a0+(a1-a0)*i/n;
     if(Math.abs(ang+.32)<gapA*.5)continue;
@@ -175,31 +270,24 @@ function s3(t){
     ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-Math.cos(ang)*34,y-Math.sin(ang)*34);
     ctx.lineWidth=9;ctx.lineCap='round';ctx.strokeStyle=FG;ctx.stroke();
   }
-  // sinir
   const ng=ease(seg(t,14.2,15.2));
   const nx=cx+Math.cos(-.32)*R,ny=cy+Math.sin(-.32)*R;
   ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(nx+170*ng,ny-70*ng);
   ctx.lineWidth=34;ctx.strokeStyle=AC;ctx.stroke();
-  // gelen ışık
   if(t>13){
     for(let i=0;i<5;i++){
-      const yy=cy-120+i*60,k=((t*1.4+i*.2)%1);
+      const k=((t*1.4+i*.2)%1),yy=cy-120+i*60;
       ctx.beginPath();ctx.moveTo(cx-R-260+k*220,yy*.3+cy*.7);ctx.lineTo(cx-R-200+k*220,yy*.3+cy*.7);
       ctx.lineWidth=8;ctx.strokeStyle='rgba(255,255,255,.35)';ctx.stroke();
     }
   }
-  // kör nokta vurgusu
-  const pulse=.5+.5*Math.sin(t*6);
-  const hx=nx-26,hy=ny+8;
-  const hl=seg(t,15.4,16.2);
+  const pulse=.5+.5*Math.sin(t*6),hl=seg(t,15.4,16.2);
   ctx.globalAlpha=a*hl;
-  ctx.beginPath();ctx.arc(hx,hy,42+10*pulse,0,7);ctx.lineWidth=8;ctx.strokeStyle=RED;ctx.stroke();
+  ctx.beginPath();ctx.arc(nx-26,ny+8,42+10*pulse,0,7);ctx.lineWidth=8;ctx.strokeStyle=RED;ctx.stroke();
   ctx.restore();
-  bigText(['KÖR','NOKTA'],1260,130,16.2,19,RED,t);
-  bigText(['hiç görme hücresi YOK'],1160,52,15.3,16.8,DIM,t);
+  bigText(['KÖR NOKTA'],1240,120,16.2,19,RED,t);
 }
 
-// ---------- SAHNE 5: 19-25 ----------
 function landscape(x0,y0,w,h){
   ctx.save();ctx.beginPath();ctx.rect(x0,y0,w,h);ctx.clip();
   const g=ctx.createLinearGradient(0,y0,0,y0+h);g.addColorStop(0,'#2b3a7a');g.addColorStop(.55,'#e9854a');g.addColorStop(.56,'#2f5d46');g.addColorStop(1,'#16352a');
@@ -214,63 +302,48 @@ function s4(t){
   const a=seg(t,19,19.3)*(1-seg(t,24.8,25));
   if(a<=0)return;
   ctx.save();ctx.globalAlpha=a;
-  const x0=100,y0=420,w=880,h=760;
+  const x0=100,y0=420,w=880,h=700;
   landscape(x0,y0,w,h);
   const hx=x0+w*.52,hy=y0+h*.48;
-  // delik: önce belirir, sonra dolar
   const appear=seg(t,19.3,20.2),fill=ease(seg(t,21.2,22.8));
   const R=(150*appear)*(1-fill);
   if(R>1){
-    ctx.save();ctx.beginPath();ctx.arc(hx,hy,R,0,7);ctx.fillStyle='#000';ctx.fill();
-    ctx.lineWidth=6;ctx.strokeStyle=AC;ctx.stroke();ctx.restore();
-  }
-  // beyin kalemi: 20.8–22.8
-  if(t>20.6&&t<23){
-    const k=seg(t,20.8,22.8);
-    const bx=hx+Math.cos(k*14)*(1-k)*170,by=hy+Math.sin(k*14)*(1-k)*170-40;
-    ctx.beginPath();ctx.arc(bx,by-70,52,0,7);ctx.fillStyle='#f59ab0';ctx.fill();
-    ctx.beginPath();ctx.arc(bx-24,by-80,22,0,7);ctx.arc(bx+24,by-80,22,0,7);ctx.fillStyle='#f6b1c2';ctx.fill();
-    ctx.fillStyle=FG;ctx.fillRect(bx-6,by-24,12,60);
+    ctx.beginPath();ctx.arc(hx,hy,R,0,7);ctx.fillStyle='#000';ctx.fill();
+    ctx.lineWidth=6;ctx.strokeStyle=AC;ctx.stroke();
+    if(t>21.2)for(let i=0;i<10;i++){const an=i*.63+t*3;ctx.fillStyle=AC;ctx.beginPath();ctx.arc(hx+Math.cos(an)*R,hy+Math.sin(an)*R,7,0,7);ctx.fill()}
   }
   ctx.strokeStyle=FG;ctx.lineWidth=8;ctx.strokeRect(x0,y0,w,h);
   ctx.restore();
-  bigText(['BEYNİN TAHMİN EDİP','BOŞLUĞU DOLDURUR'],1290,64,21.4,23.6,FG,t);
+  bigText(['BEYNİN TAHMİN EDİP','BOŞLUĞU DOLDURUR'],1230,64,21.4,23.6,FG,t);
   if(t>=23.4){
     const sh=t<24.4?Math.sin(t*90)*6*(1-seg(t,23.9,24.4)):0;
-    ctx.save();ctx.translate(sh,0);bigText(['UYDURMA'],1290,150,23.5,25,AC,t);ctx.restore();
+    ctx.save();ctx.translate(sh,0);bigText(['UYDURMA'],1235,150,23.5,25,AC,t);ctx.restore();
   }
 }
 
-// ---------- SAHNE 6: 25-30 ----------
 function s5(t){
   const a=seg(t,25,25.4);
   if(a<=0)return;
   ctx.save();ctx.globalAlpha=a;
-  // anı balonu dağılıyor
-  const cx=W/2,cy=800,k=ease(seg(t,25.4,29.3));
+  const cx=W/2,cy=700,k=ease(seg(t,25.4,29.3));
   ctx.beginPath();ctx.arc(cx,cy,230,0,7);ctx.fillStyle='rgba(244,241,234,.08)';ctx.fill();
   ctx.lineWidth=8;ctx.strokeStyle=FG;ctx.setLineDash([30,22]);ctx.stroke();ctx.setLineDash([]);
   for(let i=0;i<70;i++){
-    const ang=i*2.399,rad=60+(i%7)*28;
-    const off=k*220*(0.4+(i%5)*.3);
+    const ang=i*2.399,rad=60+(i%7)*28,off=k*220*(0.4+(i%5)*.3);
     const x=cx+Math.cos(ang)*(rad+off),y=cy+Math.sin(ang)*(rad+off)-k*60;
     ctx.globalAlpha=a*(1-k*.7);
     ctx.fillStyle=i%4?FG:AC;ctx.beginPath();ctx.arc(x,y,10-(i%3)*2,0,7);ctx.fill();
   }
-  ctx.globalAlpha=a;
-  text('?',cx,cy,260,AC,a);
+  ctx.globalAlpha=a;text('?',cx,cy,260,AC,a);
   ctx.restore();
-  bigText(['SIRADAKİ:','HATIRLADIĞIN ŞEY','GERÇEK Mİ?'],1260,80,27.0,30,FG,t);
+  bigText(['SIRADAKİ: HATIRLADIĞIN','ŞEY GERÇEK Mİ?'],1150,70,27.0,30,FG,t);
 }
 
-// ---------- HUD ----------
 function hud(t){
-  // seri etiketi + ilerleme çubuğu
   text('SENİ KANDIRAN ŞEY',70,92,38,DIM,1,'700','left');
   text('S1 · B1',W-70,92,38,DIM,1,'700','right');
   ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(70,140,W-140,8);
   ctx.fillStyle=AC;ctx.fillRect(70,140,(W-140)*t/DUR,8);
-  // İPUCU sayacı
   if(t>=25){
     const k=outBack(seg(t,25,25.6));
     ctx.save();ctx.translate(W-250,230);ctx.scale(k,k);
@@ -281,16 +354,21 @@ function hud(t){
 
 function draw(t){
   t=clamp(t,0,DUR);
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);
-  // vinyet
-  const vg=ctx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');
+  // sahne alanı (üst bölüm) %80 ölçek
+  const shake=(t>=10&&t<10.5)?Math.sin(t*90)*12*(1-seg(t,10,10.5)):0;
+  ctx.save();ctx.translate(108+shake,34);ctx.scale(.8,.8);
   if(t<3)s1(t); else if(t<12.05)s2(t); else if(t<19)s3(t); else if(t<25)s4(t); else s5(t);
+  ctx.restore();
+  mascot(t);
+  const vg=ctx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.4)');
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   grain(t);hud(t);subtitle(t);
+  if(t<.25){ctx.fillStyle=`rgba(255,255,255,${.55*(1-t/.25)})`;ctx.fillRect(0,0,W,H)} // açılış parlaması
 }
 window.draw=draw;
 
-// ---------- Oynatıcı ----------
 const play=document.getElementById('play'),seek=document.getElementById('seek'),tt=document.getElementById('tt'),vo=document.getElementById('vo');
 let playing=false,t0=0,tNow=0;
 function frame(now){
@@ -304,7 +382,7 @@ play.onclick=()=>{
 };
 seek.oninput=()=>{tNow=+seek.value;t0=performance.now()-tNow*1000;vo.currentTime=tNow};
 if(location.search.includes('render'))document.body.classList.add('render');
-else requestAnimationFrame(frame); // render modunda döngü yok: kareleri render.cjs çizer
+else requestAnimationFrame(frame);
 </script>
 </body>
 </html>
