@@ -29,7 +29,7 @@ const FONT='"Poppins","Montserrat","DejaVu Sans","Arial",sans-serif';
 const VO=[
  [0.0,3.0,"Gözünde bir delik var. Ve beynin bunu senden saklıyor."],
  [3.0,8.0,"Sol gözünü kapat. Sağ gözünle artıya bak. Telefonu yavaşça yüzüne yaklaştır."],
- [9.4,11.8,"Nokta kayboldu, değil mi?"],
+ [10.4,11.95,"Nokta kayboldu, değil mi?"],
  [12.0,19.0,"Çünkü gözünün arkasında, sinirin çıktığı yerde hiç görme hücresi yok. Buna kör nokta denir."],
  [19.0,25.0,"Peki neden hayatında hiç delik görmüyorsun? Beynin boşluğu tahminle doldurur. Yani gördüğünün bir kısmı… uydurma."],
  [25.0,30.0,"Gözün yalan söylüyorsa, hafızan ne yapıyor? Sıradaki bölümde."]
@@ -100,7 +100,8 @@ function s1(t){
 }
 
 // ---------- SAHNE 2-3: 3-12 ----------
-const PX=300,DX=800,PY=900;
+const PX=120,DX=960,PY=900; // + ile ● arası ~%78 ekran genişliği (telefonda ~5 cm → ~19 cm mesafede kör noktaya düşer)
+const DR=64; // nokta yarıçapı
 function plus(x,y,s,col,a=1){ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=col;ctx.lineWidth=14;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(x-s,y);ctx.lineTo(x+s,y);ctx.moveTo(x,y-s);ctx.lineTo(x,y+s);ctx.stroke();ctx.restore()}
 function s2(t){
@@ -109,16 +110,16 @@ function s2(t){
   const closing=ease(seg(t,3.3,4.3));
   plus(PX,PY,50,AC,a);
   // nokta: 9.0'da kaybolur, 11.4'te geri gelir
-  const gone=t>=9.0&&t<11.4;
+  const gone=t>=10.0&&t<11.7;
   if(!gone&&a>0){
-    let r=44;
-    if(t>=8.7&&t<9.0)r=44*(1-seg(t,8.7,9.0)*.9);
-    if(t>=11.4)r=44*outBack(seg(t,11.4,11.7));
+    let r=DR;
+    if(t>=9.7&&t<10.0)r=DR*(1-seg(t,9.7,10.0)*.9);
+    if(t>=11.7)r=DR*outBack(seg(t,11.7,12.0));
     ctx.save();ctx.globalAlpha=a;ctx.fillStyle=FG;ctx.beginPath();ctx.arc(DX,PY,Math.max(r,0),0,7);ctx.fill();ctx.restore();
   }
-  if(t>=9.0&&t<9.5){ // pof halkası
-    const k=seg(t,9.0,9.5);ctx.save();ctx.globalAlpha=1-k;ctx.strokeStyle=AC;ctx.lineWidth=8;
-    ctx.beginPath();ctx.arc(DX,PY,44+120*k,0,7);ctx.stroke();ctx.restore();
+  if(t>=10.0&&t<10.5){ // pof halkası
+    const k=seg(t,10.0,10.5);ctx.save();ctx.globalAlpha=1-k;ctx.strokeStyle=AC;ctx.lineWidth=8;
+    ctx.beginPath();ctx.arc(DX,PY,DR+120*k,0,7);ctx.stroke();ctx.restore();
   }
   // göz kapatma ikonu (sol gözü kapat)
   if(t>3&&t<8){
@@ -140,16 +141,16 @@ function s2(t){
   bigText(['SOL GÖZÜNÜ','KAPAT'],1150,100,3.2,5.6,FG,t);
   bigText(['+ İŞARETİNE','BAK'],1150,100,5.6,8.0,AC,t);
   // telefon yaklaşma oku 8–9.2
-  if(t>=8&&t<9.8){
-    const k=seg(t,8,9.2),aa=1-seg(t,9.4,9.8);
+  if(t>=8&&t<10.6){
+    const k=seg(t,8,10.0),aa=1-seg(t,10.2,10.6);
     ctx.save();ctx.globalAlpha=aa;
     const r=70+(1-k)*90;
     ctx.strokeStyle=FG;ctx.lineWidth=8;ctx.setLineDash([22,16]);
     ctx.strokeRect(W/2-r*3.2,1420-r*.7,r*6.4,r*1.4);
     ctx.restore();
-    text('↓  YAKLAŞTIR  ↓',W/2,1260,64,DIM,aa*seg(t,8,8.3),'700');
+    text('telefonu yavaşça yaklaştır',W/2,1230,48,DIM,aa*seg(t,8,8.3),'700');text('gözün + işaretinde kalsın',W/2,1290,48,DIM,aa*seg(t,8,8.3),'700');
   }
-  bigText(['NOKTA','KAYBOLDU,','DEĞİL Mİ?'],1170,104,10.0,11.9,AC,t);
+  bigText(['NOKTA','KAYBOLDU,','DEĞİL Mİ?'],1170,104,10.5,12.0,AC,t);
 }
 
 // ---------- SAHNE 4: 12-19 ----------

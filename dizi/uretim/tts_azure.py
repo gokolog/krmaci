@@ -16,7 +16,7 @@ if not KEY: sys.exit("AZURE_SPEECH_KEY tanımlı değil.")
 VO = [
  (0.0, 3.0, "Gözünde bir delik var. Ve beynin bunu senden saklıyor."),
  (3.0, 8.0, "Sol gözünü kapat. Sağ gözünle artıya bak. Telefonu yavaşça yüzüne yaklaştır."),
- (9.4, 11.8, "Nokta kayboldu, değil mi?"),
+ (10.4, 11.95, "Nokta kayboldu, değil mi?"),
  (12.0, 19.0, "Çünkü gözünün arkasında, sinirin çıktığı yerde hiç görme hücresi yok. Buna kör nokta denir."),
  (19.0, 25.0, "Peki neden hayatında hiç delik görmüyorsun? Beynin boşluğu tahminle doldurur. Yani gördüğünün bir kısmı… uydurma."),
  (25.0, 30.0, "Gözün yalan söylüyorsa, hafızan ne yapıyor? Sıradaki bölümde."),
