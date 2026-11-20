@@ -61,9 +61,14 @@ def pre_check(cfg: Config, symbol: str, state: dict, now: datetime) -> tuple[boo
         return False, "günlük zarar limiti"
     if day["trades"] >= cfg.max_trades_per_day:
         return False, "günlük işlem limiti"
+    if day.get("debates", 0) >= cfg.max_debates_per_day:
+        return False, "günlük LLM tartışma bütçesi doldu"
     last = state.get("last_trade_ts", {}).get(symbol)
     if last and (now.timestamp() - last) < cfg.cooldown_min * 60:
         return False, "bekleme süresi"
+    ld = state.get("last_debate_ts", {}).get(symbol)
+    if ld and (now.timestamp() - ld) < cfg.debate_cooldown_min * 60:
+        return False, "bu sembol yakın zamanda tartışıldı"
     return True, "ok"
 
 

@@ -66,6 +66,9 @@ def cycle(cfg: Config, client, llm, ex: Executor, mode: str, state: dict, now: d
     anomalies.sort(key=lambda x: x[0].vol_z, reverse=True)
     an, ks = anomalies[0]   # döngü başına en güçlü tek anomali (maliyet/gürültü kontrolü)
 
+    # Bütçe/bekleme: tartışmadan ÖNCE işaretle (hata olsa bile aynı anomaliye tekrar para harcanmasın)
+    _day(state, now)["debates"] = _day(state, now).get("debates", 0) + 1
+    state.setdefault("last_debate_ts", {})[an.symbol] = now.timestamp()
     v = desk.run(llm, an, ks, cfg.max_debate_rounds, cfg.use_web_search)
     if cfg.log_agents:
         journal.log(cfg.journal_path, "debate", symbol=an.symbol, decision=v.decision,

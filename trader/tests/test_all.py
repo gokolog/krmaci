@@ -156,3 +156,29 @@ def test_cooldown_prevents_llm_call_after_close(tmp_path):
     llm = FakeLLM([])
     m.cycle(c, client, llm, ex, "paper", st, now)
     assert llm.calls == 0
+
+
+def test_no_debate_repeat_for_same_symbol_even_when_bekle(tmp_path):
+    c = cfg(tmp_path)
+    client = FakeClient(spike_sym="AAAUSDT")
+    ex = Executor(c, client, "paper")
+    st = journal.load_state(str(tmp_path / "none.json"))
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    nosrc = J(reason="bulunamadı", sources=[], confidence=0, is_old_news=False)
+    llm = FakeLLM([nosrc])
+    m.cycle(c, client, llm, ex, "paper", st, now)      # BEKLE
+    m.cycle(c, client, llm, ex, "paper", st, now)      # aynı sembol: LLM çağrılmamalı
+    assert llm.calls == 1
+
+
+def test_daily_debate_budget(tmp_path):
+    c = dataclasses.replace(cfg(tmp_path), max_debates_per_day=1, debate_cooldown_min=0)
+    client = FakeClient(spike_sym="AAAUSDT")
+    ex = Executor(c, client, "paper")
+    st = journal.load_state(str(tmp_path / "none.json"))
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    nosrc = J(reason="bulunamadı", sources=[], confidence=0, is_old_news=False)
+    llm = FakeLLM([nosrc, nosrc])
+    m.cycle(c, client, llm, ex, "paper", st, now)
+    m.cycle(c, client, llm, ex, "paper", st, now)
+    assert llm.calls == 1

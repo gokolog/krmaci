@@ -33,6 +33,8 @@ class Config:
     # --- LLM ---
     model: str = "claude-sonnet-5-5"
     max_debate_rounds: int = 2
+    max_debates_per_day: int = 30       # günlük LLM tartışma bütçesi (aşılınca bot sadece izler)
+    debate_cooldown_min: int = 60       # BEKLE/GEÇ dahil, aynı sembolü tekrar tartıştırma
     use_web_search: bool = True         # Haberci için
 
     # --- Dosyalar ---
